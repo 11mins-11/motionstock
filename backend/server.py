@@ -29,6 +29,10 @@ db = client[os.environ['DB_NAME']]
 UPLOADS_DIR = ROOT_DIR / "uploads" / "motion_graphics"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Create exports directory
+EXPORTS_DIR = ROOT_DIR / "exports"
+EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
 # Create the main app without a prefix
 app = FastAPI()
 
@@ -54,7 +58,8 @@ class MotionGraphic(BaseModel):
 class AnimatedTemplate(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
-    type: str  # "counter", "text_animation", "progress_bar", "particles"
+    type: str  # "counter", "text_animation", "progress_bar", "particles", "chart", "social_counter", "countdown", "logo_reveal", "loading"
+    category: str  # "business", "social", "utility", "creative", "data"
     description: str
     preview_url: Optional[str] = None
     default_config: Dict[str, Any] = {}
@@ -68,6 +73,14 @@ class AnimatedProject(BaseModel):
     config: Dict[str, Any] = {}
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ExportRequest(BaseModel):
+    project_id: str
+    format: str = "mp4"  # "mp4", "gif", "webm"
+    duration: int = 5000  # milliseconds
+    width: int = 800
+    height: int = 600
+    quality: str = "high"  # "low", "medium", "high"
 
 class MotionGraphicCreate(BaseModel):
     title: str
@@ -94,7 +107,7 @@ class AnimatedProjectUpdate(BaseModel):
 # Categories for motion graphics
 CATEGORIES = [
     "transitions",
-    "overlays",
+    "overlays", 
     "backgrounds",
     "text_animations",
     "effects",
@@ -105,11 +118,22 @@ CATEGORIES = [
     "other"
 ]
 
-# Animation Templates
+# Template categories
+TEMPLATE_CATEGORIES = [
+    "business",
+    "social",
+    "utility", 
+    "creative",
+    "data"
+]
+
+# Enhanced Animation Templates with new sophisticated options
 DEFAULT_TEMPLATES = [
+    # Business Templates
     {
         "name": "Money Counter",
         "type": "counter",
+        "category": "business",
         "description": "Animated number counter with currency formatting",
         "default_config": {
             "start_value": 0,
@@ -120,7 +144,9 @@ DEFAULT_TEMPLATES = [
             "color": "#00ff88",
             "font_size": 48,
             "font_weight": "bold",
-            "background": "#000000"
+            "background": "#000000",
+            "easing": "ease-out",
+            "glow_effect": True
         },
         "editable_params": [
             {"name": "start_value", "type": "number", "label": "Start Value", "min": 0, "max": 999999999},
@@ -130,12 +156,125 @@ DEFAULT_TEMPLATES = [
             {"name": "decimal_places", "type": "number", "label": "Decimal Places", "min": 0, "max": 4},
             {"name": "color", "type": "color", "label": "Text Color"},
             {"name": "font_size", "type": "range", "label": "Font Size", "min": 16, "max": 128, "step": 2},
-            {"name": "background", "type": "color", "label": "Background Color"}
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "easing", "type": "select", "label": "Animation Easing", 
+             "options": [
+                 {"value": "linear", "label": "Linear"},
+                 {"value": "ease-in", "label": "Ease In"},
+                 {"value": "ease-out", "label": "Ease Out"},
+                 {"value": "ease-in-out", "label": "Ease In Out"},
+                 {"value": "bounce", "label": "Bounce"}
+             ]},
+            {"name": "glow_effect", "type": "boolean", "label": "Glow Effect"}
         ]
     },
     {
+        "name": "Animated Bar Chart",
+        "type": "chart",
+        "category": "data",
+        "description": "Animated bar chart with customizable data",
+        "default_config": {
+            "data": [
+                {"label": "Q1", "value": 75, "color": "#8b5cf6"},
+                {"label": "Q2", "value": 85, "color": "#a855f7"},
+                {"label": "Q3", "value": 90, "color": "#c084fc"},
+                {"label": "Q4", "value": 95, "color": "#d8b4fe"}
+            ],
+            "duration": 2000,
+            "bar_width": 40,
+            "spacing": 20,
+            "background": "#1a1a2e",
+            "text_color": "#ffffff",
+            "show_values": True,
+            "animate_bars": True,
+            "animate_labels": True
+        },
+        "editable_params": [
+            {"name": "duration", "type": "range", "label": "Animation Duration", "min": 1000, "max": 8000, "step": 200},
+            {"name": "bar_width", "type": "range", "label": "Bar Width", "min": 20, "max": 80, "step": 5},
+            {"name": "spacing", "type": "range", "label": "Bar Spacing", "min": 10, "max": 50, "step": 5},
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "text_color", "type": "color", "label": "Text Color"},
+            {"name": "show_values", "type": "boolean", "label": "Show Values"},
+            {"name": "animate_bars", "type": "boolean", "label": "Animate Bars"},
+            {"name": "animate_labels", "type": "boolean", "label": "Animate Labels"}
+        ]
+    },
+    # Social Templates
+    {
+        "name": "Social Counter",
+        "type": "social_counter",
+        "category": "social",
+        "description": "Social media follower/like counter with icons",
+        "default_config": {
+            "platform": "instagram",
+            "start_count": 0,
+            "end_count": 50000,
+            "duration": 4000,
+            "label": "Followers",
+            "color": "#e4405f",
+            "background": "#000000",
+            "font_size": 32,
+            "show_icon": True,
+            "animate_icon": True
+        },
+        "editable_params": [
+            {"name": "platform", "type": "select", "label": "Platform",
+             "options": [
+                 {"value": "instagram", "label": "Instagram"},
+                 {"value": "youtube", "label": "YouTube"},
+                 {"value": "twitter", "label": "Twitter"},
+                 {"value": "tiktok", "label": "TikTok"},
+                 {"value": "linkedin", "label": "LinkedIn"}
+             ]},
+            {"name": "start_count", "type": "number", "label": "Start Count", "min": 0},
+            {"name": "end_count", "type": "number", "label": "End Count", "min": 0},
+            {"name": "duration", "type": "range", "label": "Duration (ms)", "min": 1000, "max": 8000, "step": 200},
+            {"name": "label", "type": "text", "label": "Label Text"},
+            {"name": "color", "type": "color", "label": "Text Color"},
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "font_size", "type": "range", "label": "Font Size", "min": 16, "max": 64, "step": 2},
+            {"name": "show_icon", "type": "boolean", "label": "Show Platform Icon"},
+            {"name": "animate_icon", "type": "boolean", "label": "Animate Icon"}
+        ]
+    },
+    {
+        "name": "Countdown Timer",
+        "type": "countdown",
+        "category": "utility",
+        "description": "Countdown timer with customizable styling",
+        "default_config": {
+            "start_time": 60,
+            "time_unit": "seconds",
+            "color": "#ff6b35",
+            "background": "#1a1a2e",
+            "font_size": 48,
+            "show_labels": True,
+            "format": "mm:ss",
+            "warning_color": "#ff3333",
+            "warning_threshold": 10
+        },
+        "editable_params": [
+            {"name": "start_time", "type": "number", "label": "Start Time", "min": 1, "max": 3600},
+            {"name": "time_unit", "type": "select", "label": "Time Unit",
+             "options": [
+                 {"value": "seconds", "label": "Seconds"},
+                 {"value": "minutes", "label": "Minutes"},
+                 {"value": "hours", "label": "Hours"}
+             ]},
+            {"name": "color", "type": "color", "label": "Text Color"},
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "font_size", "type": "range", "label": "Font Size", "min": 24, "max": 96, "step": 4},
+            {"name": "show_labels", "type": "boolean", "label": "Show Time Labels"},
+            {"name": "warning_color", "type": "color", "label": "Warning Color"},
+            {"name": "warning_threshold", "type": "number", "label": "Warning Threshold", "min": 1, "max": 60}
+        ]
+    },
+    # Creative Templates
+    {
         "name": "Text Reveal",
-        "type": "text_animation",
+        "type": "text_animation", 
+        "category": "creative",
         "description": "Animated text with various reveal effects",
         "default_config": {
             "text": "Amazing Motion Graphics",
@@ -145,7 +284,9 @@ DEFAULT_TEMPLATES = [
             "font_size": 36,
             "font_weight": "normal",
             "background": "#1a1a2e",
-            "delay": 0
+            "delay": 0,
+            "letter_spacing": 2,
+            "glow_intensity": 0
         },
         "editable_params": [
             {"name": "text", "type": "text", "label": "Text Content", "max_length": 100},
@@ -155,18 +296,59 @@ DEFAULT_TEMPLATES = [
                  {"value": "fade_in", "label": "Fade In"},
                  {"value": "slide_up", "label": "Slide Up"},
                  {"value": "bounce", "label": "Bounce"},
-                 {"value": "rotate_in", "label": "Rotate In"}
+                 {"value": "rotate_in", "label": "Rotate In"},
+                 {"value": "wave", "label": "Wave"},
+                 {"value": "glitch", "label": "Glitch Effect"}
              ]},
             {"name": "duration", "type": "range", "label": "Duration (ms)", "min": 500, "max": 5000, "step": 100},
             {"name": "delay", "type": "range", "label": "Delay (ms)", "min": 0, "max": 3000, "step": 100},
             {"name": "color", "type": "color", "label": "Text Color"},
             {"name": "font_size", "type": "range", "label": "Font Size", "min": 16, "max": 96, "step": 2},
-            {"name": "background", "type": "color", "label": "Background Color"}
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "letter_spacing", "type": "range", "label": "Letter Spacing", "min": 0, "max": 20, "step": 1},
+            {"name": "glow_intensity", "type": "range", "label": "Glow Intensity", "min": 0, "max": 20, "step": 1}
         ]
     },
     {
+        "name": "Logo Reveal",
+        "type": "logo_reveal",
+        "category": "creative", 
+        "description": "Animated logo reveal with particle effects",
+        "default_config": {
+            "logo_text": "BRAND",
+            "reveal_type": "particle_burst",
+            "duration": 3000,
+            "color": "#8b5cf6",
+            "background": "#000000",
+            "font_size": 48,
+            "particle_count": 30,
+            "glow_effect": True,
+            "shake_intensity": 0
+        },
+        "editable_params": [
+            {"name": "logo_text", "type": "text", "label": "Logo Text", "max_length": 20},
+            {"name": "reveal_type", "type": "select", "label": "Reveal Type",
+             "options": [
+                 {"value": "fade_in", "label": "Fade In"},
+                 {"value": "scale_up", "label": "Scale Up"},
+                 {"value": "particle_burst", "label": "Particle Burst"},
+                 {"value": "slide_reveal", "label": "Slide Reveal"},
+                 {"value": "rotation", "label": "Rotation"}
+             ]},
+            {"name": "duration", "type": "range", "label": "Duration (ms)", "min": 1000, "max": 6000, "step": 200},
+            {"name": "color", "type": "color", "label": "Logo Color"},
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "font_size", "type": "range", "label": "Font Size", "min": 24, "max": 96, "step": 4},
+            {"name": "particle_count", "type": "range", "label": "Particle Count", "min": 10, "max": 100, "step": 5},
+            {"name": "glow_effect", "type": "boolean", "label": "Glow Effect"},
+            {"name": "shake_intensity", "type": "range", "label": "Shake Effect", "min": 0, "max": 10, "step": 1}
+        ]
+    },
+    # Existing templates with enhancements
+    {
         "name": "Progress Bar",
         "type": "progress_bar",
+        "category": "utility",
         "description": "Animated progress bar with customizable styling",
         "default_config": {
             "progress": 75,
@@ -177,7 +359,9 @@ DEFAULT_TEMPLATES = [
             "border_radius": 10,
             "show_percentage": True,
             "text_color": "#ffffff",
-            "background": "#1f2937"
+            "background": "#1f2937",
+            "gradient_effect": True,
+            "pulse_effect": False
         },
         "editable_params": [
             {"name": "progress", "type": "range", "label": "Progress %", "min": 0, "max": 100, "step": 1},
@@ -188,12 +372,15 @@ DEFAULT_TEMPLATES = [
             {"name": "border_radius", "type": "range", "label": "Border Radius", "min": 0, "max": 25, "step": 1},
             {"name": "show_percentage", "type": "boolean", "label": "Show Percentage"},
             {"name": "text_color", "type": "color", "label": "Text Color"},
-            {"name": "background", "type": "color", "label": "Background Color"}
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "gradient_effect", "type": "boolean", "label": "Gradient Effect"},
+            {"name": "pulse_effect", "type": "boolean", "label": "Pulse Effect"}
         ]
     },
     {
         "name": "Particle Burst",
         "type": "particles",
+        "category": "creative",
         "description": "Animated particle explosion effect",
         "default_config": {
             "particle_count": 50,
@@ -203,7 +390,9 @@ DEFAULT_TEMPLATES = [
             "spread": 200,
             "gravity": 0.5,
             "background": "#000000",
-            "trigger_delay": 0
+            "trigger_delay": 0,
+            "particle_shape": "circle",
+            "trail_effect": False
         },
         "editable_params": [
             {"name": "particle_count", "type": "range", "label": "Particle Count", "min": 10, "max": 200, "step": 5},
@@ -213,22 +402,69 @@ DEFAULT_TEMPLATES = [
             {"name": "spread", "type": "range", "label": "Spread", "min": 50, "max": 400, "step": 10},
             {"name": "gravity", "type": "range", "label": "Gravity", "min": 0, "max": 2, "step": 0.1},
             {"name": "background", "type": "color", "label": "Background Color"},
-            {"name": "trigger_delay", "type": "range", "label": "Trigger Delay (ms)", "min": 0, "max": 3000, "step": 100}
+            {"name": "trigger_delay", "type": "range", "label": "Trigger Delay (ms)", "min": 0, "max": 3000, "step": 100},
+            {"name": "particle_shape", "type": "select", "label": "Particle Shape",
+             "options": [
+                 {"value": "circle", "label": "Circle"},
+                 {"value": "square", "label": "Square"},
+                 {"value": "triangle", "label": "Triangle"},
+                 {"value": "star", "label": "Star"}
+             ]},
+            {"name": "trail_effect", "type": "boolean", "label": "Trail Effect"}
+        ]
+    },
+    {
+        "name": "Loading Animation",
+        "type": "loading",
+        "category": "utility",
+        "description": "Customizable loading spinner with various styles",
+        "default_config": {
+            "loading_type": "spinner",
+            "color": "#8b5cf6",
+            "background": "#1a1a2e",
+            "size": 60,
+            "speed": 1.5,
+            "stroke_width": 4,
+            "show_text": True,
+            "loading_text": "Loading...",
+            "text_color": "#ffffff"
+        },
+        "editable_params": [
+            {"name": "loading_type", "type": "select", "label": "Loading Type",
+             "options": [
+                 {"value": "spinner", "label": "Spinner"},
+                 {"value": "dots", "label": "Bouncing Dots"},
+                 {"value": "pulse", "label": "Pulse"},
+                 {"value": "wave", "label": "Wave"},
+                 {"value": "orbit", "label": "Orbit"}
+             ]},
+            {"name": "color", "type": "color", "label": "Primary Color"},
+            {"name": "background", "type": "color", "label": "Background Color"},
+            {"name": "size", "type": "range", "label": "Size", "min": 30, "max": 120, "step": 5},
+            {"name": "speed", "type": "range", "label": "Animation Speed", "min": 0.5, "max": 3, "step": 0.1},
+            {"name": "stroke_width", "type": "range", "label": "Stroke Width", "min": 1, "max": 10, "step": 1},
+            {"name": "show_text", "type": "boolean", "label": "Show Loading Text"},
+            {"name": "loading_text", "type": "text", "label": "Loading Text"},
+            {"name": "text_color", "type": "color", "label": "Text Color"}
         ]
     }
 ]
 
 @api_router.get("/")
 async def root():
-    return {"message": "Motion Graphics Stock API with Animation Editor"}
+    return {"message": "Motion Graphics Studio API - Enhanced Edition"}
 
 @api_router.get("/categories")
 async def get_categories():
     return {"categories": CATEGORIES}
 
+@api_router.get("/template-categories")
+async def get_template_categories():
+    return {"categories": TEMPLATE_CATEGORIES}
+
 # Animation Templates Endpoints
 @api_router.get("/templates", response_model=List[AnimatedTemplate])
-async def get_templates():
+async def get_templates(category: Optional[str] = None):
     templates = await db.animated_templates.find().to_list(None)
     
     # If no templates in DB, initialize with defaults
@@ -239,6 +475,10 @@ async def get_templates():
             templates.append(template)
     else:
         templates = [AnimatedTemplate(**t) for t in templates]
+    
+    # Filter by category if provided
+    if category:
+        templates = [t for t in templates if t.category == category]
     
     return templates
 
@@ -298,50 +538,100 @@ async def delete_project(project_id: str):
         raise HTTPException(status_code=404, detail="Project not found")
     return {"message": "Project deleted successfully"}
 
+# Export functionality
+@api_router.post("/export")
+async def export_animation(export_request: ExportRequest):
+    """Export animation as video/GIF (placeholder implementation)"""
+    try:
+        # Get project data
+        project = await db.animated_projects.find_one({"id": export_request.project_id})
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Get template
+        template = await db.animated_templates.find_one({"id": project["template_id"]})
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # Generate export filename
+        export_filename = f"{project['name'].replace(' ', '_')}_{uuid.uuid4().hex[:8]}.{export_request.format}"
+        export_path = EXPORTS_DIR / export_filename
+        
+        # For now, create a simple placeholder file
+        # In a real implementation, this would render the animation to video
+        export_data = {
+            "project": project,
+            "template": template,
+            "export_settings": export_request.dict(),
+            "created_at": datetime.utcnow().isoformat(),
+            "format": export_request.format,
+            "dimensions": f"{export_request.width}x{export_request.height}",
+            "duration": f"{export_request.duration}ms"
+        }
+        
+        # Write export metadata (in real implementation, this would be video data)
+        with open(export_path, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        
+        return {
+            "export_id": export_filename,
+            "download_url": f"/api/exports/{export_filename}",
+            "status": "completed",
+            "format": export_request.format,
+            "file_size": os.path.getsize(export_path)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+@api_router.get("/exports/{export_id}")
+async def download_export(export_id: str):
+    """Download exported animation file"""
+    export_path = EXPORTS_DIR / export_id
+    if not export_path.exists():
+        raise HTTPException(status_code=404, detail="Export file not found")
+    
+    return FileResponse(
+        path=export_path,
+        filename=export_id,
+        media_type="application/octet-stream"
+    )
+
 # Original Motion Graphics Endpoints (keeping existing functionality)
 @api_router.post("/motion-graphics", response_model=MotionGraphic)
 async def upload_motion_graphic(
     title: str = Form(...),
     description: str = Form(...),
     category: str = Form(...),
-    tags: str = Form("[]"),  # JSON string of tags
+    tags: str = Form("[]"),
     format: str = Form(...),
     file: UploadFile = File(...)
 ):
-    # Parse tags from JSON string
     try:
         tags_list = json.loads(tags)
     except json.JSONDecodeError:
         tags_list = []
 
-    # Validate category
     if category not in CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {CATEGORIES}")
 
-    # Validate file type
     allowed_types = ["video/mp4", "video/quicktime", "video/x-msvideo", "application/zip"]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Invalid file type. Only MP4, MOV, AVI, and ZIP files are allowed.")
 
-    # Generate unique filename
     file_extension = Path(file.filename).suffix
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = UPLOADS_DIR / unique_filename
 
-    # Save file
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
-    # Get file size
     file_size = os.path.getsize(file_path)
-
-    # Generate thumbnail (simplified - using placeholder for now)
     thumbnail_base64 = generate_thumbnail_placeholder(category)
 
-    # Create motion graphic record
     motion_graphic_data = {
         "title": title,
         "description": description,
@@ -355,8 +645,6 @@ async def upload_motion_graphic(
     }
     
     motion_graphic = MotionGraphic(**motion_graphic_data)
-    
-    # Save to database
     await db.motion_graphics.insert_one(motion_graphic.dict())
     
     return motion_graphic
@@ -368,7 +656,6 @@ async def get_motion_graphics(
     limit: int = 20,
     offset: int = 0
 ):
-    # Build query
     query = {}
     
     if category and category in CATEGORIES:
@@ -381,7 +668,6 @@ async def get_motion_graphics(
             {"tags": {"$regex": search, "$options": "i"}}
         ]
     
-    # Get motion graphics from database
     cursor = db.motion_graphics.find(query).skip(offset).limit(limit)
     motion_graphics = await cursor.to_list(length=None)
     
@@ -397,7 +683,6 @@ async def get_motion_graphic(motion_graphic_id: str):
 
 @api_router.get("/motion-graphics/{motion_graphic_id}/download")
 async def download_motion_graphic(motion_graphic_id: str):
-    # Get motion graphic from database
     motion_graphic = await db.motion_graphics.find_one({"id": motion_graphic_id})
     if not motion_graphic:
         raise HTTPException(status_code=404, detail="Motion graphic not found")
@@ -406,13 +691,11 @@ async def download_motion_graphic(motion_graphic_id: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on server")
     
-    # Increment download count
     await db.motion_graphics.update_one(
         {"id": motion_graphic_id},
         {"$inc": {"download_count": 1}}
     )
     
-    # Return file
     return FileResponse(
         path=file_path,
         filename=motion_graphic["filename"],
@@ -421,12 +704,10 @@ async def download_motion_graphic(motion_graphic_id: str):
 
 @api_router.put("/motion-graphics/{motion_graphic_id}", response_model=MotionGraphic)
 async def update_motion_graphic(motion_graphic_id: str, update_data: MotionGraphicUpdate):
-    # Check if motion graphic exists
     existing_mg = await db.motion_graphics.find_one({"id": motion_graphic_id})
     if not existing_mg:
         raise HTTPException(status_code=404, detail="Motion graphic not found")
     
-    # Prepare update data
     update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
     
     if update_dict:
@@ -435,23 +716,19 @@ async def update_motion_graphic(motion_graphic_id: str, update_data: MotionGraph
             {"$set": update_dict}
         )
     
-    # Return updated motion graphic
     updated_mg = await db.motion_graphics.find_one({"id": motion_graphic_id})
     return MotionGraphic(**updated_mg)
 
 @api_router.delete("/motion-graphics/{motion_graphic_id}")
 async def delete_motion_graphic(motion_graphic_id: str):
-    # Get motion graphic to delete file
     motion_graphic = await db.motion_graphics.find_one({"id": motion_graphic_id})
     if not motion_graphic:
         raise HTTPException(status_code=404, detail="Motion graphic not found")
     
-    # Delete file from filesystem
     file_path = Path(motion_graphic["file_path"])
     if file_path.exists():
         file_path.unlink()
     
-    # Delete from database
     result = await db.motion_graphics.delete_one({"id": motion_graphic_id})
     
     if result.deleted_count == 0:
@@ -468,16 +745,20 @@ async def get_stats():
     
     total_downloads_count = total_downloads[0]["total"] if total_downloads else 0
     
-    # Category distribution
     category_stats = await db.motion_graphics.aggregate([
         {"$group": {"_id": "$category", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}}
     ]).to_list(None)
     
-    # Animation stats
     total_projects = await db.animated_projects.count_documents({})
     template_usage = await db.animated_projects.aggregate([
         {"$group": {"_id": "$template_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]).to_list(None)
+    
+    # Template category stats
+    template_category_stats = await db.animated_templates.aggregate([
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}}
     ]).to_list(None)
     
@@ -485,29 +766,29 @@ async def get_stats():
         "total_graphics": total_graphics,
         "total_downloads": total_downloads_count,
         "total_projects": total_projects,
+        "total_templates": len(DEFAULT_TEMPLATES),
         "category_distribution": category_stats,
-        "template_usage": template_usage
+        "template_usage": template_usage,
+        "template_categories": template_category_stats
     }
 
 def generate_thumbnail_placeholder(category: str) -> str:
     """Generate a simple thumbnail placeholder based on category"""
-    # Color mapping for different categories
     color_map = {
-        "transitions": "#8B5CF6",  # Purple
-        "overlays": "#F59E0B",     # Amber
-        "backgrounds": "#3B82F6",  # Blue
-        "text_animations": "#EF4444", # Red
-        "effects": "#10B981",      # Green
-        "particles": "#F97316",    # Orange
-        "shapes": "#8B5CF6",       # Purple
-        "logos": "#6366F1",        # Indigo
-        "lower_thirds": "#EC4899", # Pink
-        "other": "#6B7280"         # Gray
+        "transitions": "#8B5CF6",
+        "overlays": "#F59E0B",
+        "backgrounds": "#3B82F6",
+        "text_animations": "#EF4444",
+        "effects": "#10B981",
+        "particles": "#F97316",
+        "shapes": "#8B5CF6",
+        "logos": "#6366F1",
+        "lower_thirds": "#EC4899",
+        "other": "#6B7280"
     }
     
     color = color_map.get(category, "#6B7280")
     
-    # Create a simple SVG placeholder
     svg_content = f'''
     <svg width="300" height="200" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -523,12 +804,10 @@ def generate_thumbnail_placeholder(category: str) -> str:
     </svg>
     '''
     
-    # Convert SVG to base64
     svg_bytes = svg_content.encode('utf-8')
     svg_base64 = base64.b64encode(svg_bytes).decode('utf-8')
     return f"data:image/svg+xml;base64,{svg_base64}"
 
-# Include the router in the main app
 app.include_router(api_router)
 
 app.add_middleware(
@@ -539,7 +818,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
