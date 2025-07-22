@@ -1,11 +1,563 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Hero Section Component
+// Animation Components
+const MoneyCounter = ({ config, isPlaying, onComplete }) => {
+  const [currentValue, setCurrentValue] = useState(config.start_value || 0);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setCurrentValue(config.start_value || 0);
+      return;
+    }
+
+    const startValue = config.start_value || 0;
+    const endValue = config.end_value || 1000;
+    const duration = config.duration || 3000;
+    const steps = 60; // 60fps
+    const increment = (endValue - startValue) / (duration / (1000 / steps));
+
+    let current = startValue;
+    intervalRef.current = setInterval(() => {
+      current += increment;
+      if (current >= endValue) {
+        current = endValue;
+        setCurrentValue(current);
+        clearInterval(intervalRef.current);
+        if (onComplete) onComplete();
+      } else {
+        setCurrentValue(current);
+      }
+    }, 1000 / steps);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPlaying, config]);
+
+  const formatValue = (value) => {
+    const currency = config.currency || '$';
+    const decimalPlaces = config.decimal_places || 0;
+    return currency + value.toFixed(decimalPlaces).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  return (
+    <div 
+      className="money-counter"
+      style={{
+        color: config.color || '#00ff88',
+        fontSize: `${config.font_size || 48}px`,
+        fontWeight: config.font_weight || 'bold',
+        background: config.background || '#000000',
+        padding: '20px',
+        borderRadius: '8px',
+        textAlign: 'center',
+        fontFamily: 'monospace',
+        minHeight: '100px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      {formatValue(currentValue)}
+    </div>
+  );
+};
+
+const TextAnimation = ({ config, isPlaying, onComplete }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [animationClass, setAnimationClass] = useState('');
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setDisplayText('');
+      setAnimationClass('');
+      return;
+    }
+
+    const text = config.text || 'Amazing Motion Graphics';
+    const animationType = config.animation_type || 'typewriter';
+    const duration = config.duration || 2000;
+    const delay = config.delay || 0;
+
+    setTimeout(() => {
+      if (animationType === 'typewriter') {
+        let i = 0;
+        const typeInterval = setInterval(() => {
+          setDisplayText(text.slice(0, i + 1));
+          i++;
+          if (i >= text.length) {
+            clearInterval(typeInterval);
+            if (onComplete) onComplete();
+          }
+        }, duration / text.length);
+      } else {
+        setDisplayText(text);
+        setAnimationClass(`text-${animationType}`);
+        timeoutRef.current = setTimeout(() => {
+          if (onComplete) onComplete();
+        }, duration);
+      }
+    }, delay);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isPlaying, config]);
+
+  return (
+    <div 
+      className={`text-animation ${animationClass}`}
+      style={{
+        color: config.color || '#ffffff',
+        fontSize: `${config.font_size || 36}px`,
+        fontWeight: config.font_weight || 'normal',
+        background: config.background || '#1a1a2e',
+        padding: '20px',
+        borderRadius: '8px',
+        textAlign: 'center',
+        minHeight: '100px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animationDuration: `${config.duration || 2000}ms`
+      }}
+    >
+      {displayText}
+    </div>
+  );
+};
+
+const ProgressBar = ({ config, isPlaying, onComplete }) => {
+  const [currentProgress, setCurrentProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setCurrentProgress(0);
+      return;
+    }
+
+    const targetProgress = config.progress || 75;
+    const duration = config.duration || 2000;
+    const steps = 60;
+    const increment = targetProgress / (duration / (1000 / steps));
+
+    let current = 0;
+    const progressInterval = setInterval(() => {
+      current += increment;
+      if (current >= targetProgress) {
+        current = targetProgress;
+        setCurrentProgress(current);
+        clearInterval(progressInterval);
+        if (onComplete) onComplete();
+      } else {
+        setCurrentProgress(current);
+      }
+    }, 1000 / steps);
+
+    return () => clearInterval(progressInterval);
+  }, [isPlaying, config]);
+
+  return (
+    <div 
+      style={{
+        background: config.background || '#1f2937',
+        padding: '20px',
+        borderRadius: '8px',
+        minHeight: '100px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: '10px'
+      }}
+    >
+      <div 
+        style={{
+          width: '100%',
+          height: `${config.height || 20}px`,
+          backgroundColor: config.background_color || '#374151',
+          borderRadius: `${config.border_radius || 10}px`,
+          overflow: 'hidden',
+          position: 'relative'
+        }}
+      >
+        <div 
+          style={{
+            width: `${currentProgress}%`,
+            height: '100%',
+            backgroundColor: config.bar_color || '#8b5cf6',
+            transition: 'width 0.1s ease',
+            borderRadius: `${config.border_radius || 10}px`
+          }}
+        />
+      </div>
+      {config.show_percentage && (
+        <div 
+          style={{
+            color: config.text_color || '#ffffff',
+            textAlign: 'center',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}
+        >
+          {Math.round(currentProgress)}%
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ParticleBurst = ({ config, isPlaying, onComplete }) => {
+  const canvasRef = useRef(null);
+  const particlesRef = useRef([]);
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // Initialize particles
+    const particleCount = config.particle_count || 50;
+    const particles = [];
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: centerX,
+        y: centerY,
+        vx: (Math.random() - 0.5) * (config.spread || 200) / 10,
+        vy: (Math.random() - 0.5) * (config.spread || 200) / 10,
+        size: config.particle_size || 4,
+        life: 1.0,
+        decay: 1 / ((config.duration || 3000) / 16.67) // 60fps
+      });
+    }
+
+    particlesRef.current = particles;
+
+    const animate = () => {
+      ctx.fillStyle = config.background || '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let aliveParticles = 0;
+
+      particles.forEach(particle => {
+        if (particle.life <= 0) return;
+
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += config.gravity || 0.5;
+        particle.life -= particle.decay;
+
+        const alpha = particle.life;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = config.particle_color || '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (particle.life > 0) aliveParticles++;
+      });
+
+      ctx.globalAlpha = 1;
+
+      if (aliveParticles > 0) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        if (onComplete) onComplete();
+      }
+    };
+
+    setTimeout(() => {
+      animate();
+    }, config.trigger_delay || 0);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isPlaying, config]);
+
+  return (
+    <canvas 
+      ref={canvasRef}
+      style={{
+        width: '100%',
+        minHeight: '300px',
+        background: config.background || '#000000',
+        borderRadius: '8px'
+      }}
+    />
+  );
+};
+
+// Animation Preview Component
+const AnimationPreview = ({ template, config, isPlaying, onComplete }) => {
+  const renderAnimation = () => {
+    switch (template.type) {
+      case 'counter':
+        return <MoneyCounter config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+      case 'text_animation':
+        return <TextAnimation config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+      case 'progress_bar':
+        return <ProgressBar config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+      case 'particles':
+        return <ParticleBurst config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+      default:
+        return <div>Unknown animation type</div>;
+    }
+  };
+
+  return (
+    <div className="animation-preview">
+      {renderAnimation()}
+    </div>
+  );
+};
+
+// Parameter Control Component
+const ParameterControl = ({ param, value, onChange }) => {
+  const handleChange = (newValue) => {
+    onChange(param.name, newValue);
+  };
+
+  const renderControl = () => {
+    switch (param.type) {
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={value || 0}
+            onChange={(e) => handleChange(Number(e.target.value))}
+            min={param.min}
+            max={param.max}
+            className="param-input"
+          />
+        );
+      case 'range':
+        return (
+          <div className="range-control">
+            <input
+              type="range"
+              value={value || param.min || 0}
+              onChange={(e) => handleChange(Number(e.target.value))}
+              min={param.min}
+              max={param.max}
+              step={param.step || 1}
+              className="param-range"
+            />
+            <span className="range-value">{value}</span>
+          </div>
+        );
+      case 'text':
+        return (
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => handleChange(e.target.value)}
+            maxLength={param.max_length}
+            className="param-input"
+          />
+        );
+      case 'color':
+        return (
+          <input
+            type="color"
+            value={value || '#000000'}
+            onChange={(e) => handleChange(e.target.value)}
+            className="param-color"
+          />
+        );
+      case 'boolean':
+        return (
+          <input
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => handleChange(e.target.checked)}
+            className="param-checkbox"
+          />
+        );
+      case 'select':
+        return (
+          <select
+            value={value || param.options[0].value}
+            onChange={(e) => handleChange(e.target.value)}
+            className="param-select"
+          >
+            {param.options.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+      default:
+        return <span>Unknown parameter type</span>;
+    }
+  };
+
+  return (
+    <div className="parameter-control">
+      <label className="param-label">{param.label}</label>
+      {renderControl()}
+    </div>
+  );
+};
+
+// Animation Editor Component
+const AnimationEditor = ({ template, onClose, onSave }) => {
+  const [config, setConfig] = useState(template.default_config);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [projectName, setProjectName] = useState(`${template.name} Project`);
+
+  const handleParameterChange = (paramName, value) => {
+    setConfig(prev => ({
+      ...prev,
+      [paramName]: value
+    }));
+  };
+
+  const handlePlay = () => {
+    setIsPlaying(true);
+  };
+
+  const handleStop = () => {
+    setIsPlaying(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      const projectData = {
+        template_id: template.id,
+        name: projectName,
+        config: config
+      };
+
+      await axios.post(`${API}/projects`, projectData);
+      alert('Project saved successfully!');
+      if (onSave) onSave();
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save project');
+    }
+  };
+
+  return (
+    <div className="editor-modal">
+      <div className="editor-content">
+        <div className="editor-header">
+          <div>
+            <h2>Animation Editor - {template.name}</h2>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="project-name-input"
+              placeholder="Project name"
+            />
+          </div>
+          <button className="modal-close" onClick={onClose}>&times;</button>
+        </div>
+
+        <div className="editor-body">
+          <div className="editor-preview">
+            <div className="preview-controls">
+              <button 
+                onClick={handlePlay} 
+                disabled={isPlaying}
+                className="btn-play"
+              >
+                ▶ Play
+              </button>
+              <button 
+                onClick={handleStop} 
+                disabled={!isPlaying}
+                className="btn-stop"
+              >
+                ⏹ Stop
+              </button>
+            </div>
+            <div className="preview-container">
+              <AnimationPreview
+                template={template}
+                config={config}
+                isPlaying={isPlaying}
+                onComplete={() => setIsPlaying(false)}
+              />
+            </div>
+          </div>
+
+          <div className="editor-controls">
+            <h3>Parameters</h3>
+            <div className="parameters-grid">
+              {template.editable_params.map(param => (
+                <ParameterControl
+                  key={param.name}
+                  param={param}
+                  value={config[param.name]}
+                  onChange={handleParameterChange}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="editor-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={handleSave}>Save Project</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Template Card Component
+const TemplateCard = ({ template, onEdit }) => {
+  return (
+    <div className="template-card">
+      <div className="template-preview">
+        <AnimationPreview
+          template={template}
+          config={template.default_config}
+          isPlaying={false}
+          onComplete={() => {}}
+        />
+      </div>
+      <div className="template-info">
+        <h3>{template.name}</h3>
+        <p>{template.description}</p>
+        <button className="btn-primary" onClick={() => onEdit(template)}>
+          Edit & Customize
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Hero Section Component (Updated)
 const HeroSection = () => {
   return (
     <section className="hero-section">
@@ -18,301 +570,66 @@ const HeroSection = () => {
         <div className="hero-overlay"></div>
       </div>
       <div className="hero-content">
-        <h1 className="hero-title">Premium Motion Graphics</h1>
+        <h1 className="hero-title">Create & Customize Motion Graphics</h1>
         <p className="hero-subtitle">
-          Discover thousands of high-quality motion graphics, transitions, and visual effects
-          to elevate your creative projects.
+          Design stunning animated graphics with our powerful editor. Customize colors, text, timing, and more.
+          Create money counters, progress bars, text animations, and particle effects.
         </p>
         <div className="hero-buttons">
-          <button className="btn-primary">Explore Collection</button>
-          <button className="btn-secondary">Upload Your Work</button>
+          <button className="btn-primary">Start Creating</button>
+          <button className="btn-secondary">Browse Templates</button>
         </div>
       </div>
     </section>
   );
 };
 
-// Upload Modal Component
-const UploadModal = ({ isOpen, onClose, onUpload }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: 'transitions',
-    tags: '',
-    format: 'MP4'
-  });
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-
-  const categories = [
-    'transitions', 'overlays', 'backgrounds', 'text_animations', 
-    'effects', 'particles', 'shapes', 'logos', 'lower_thirds', 'other'
-  ];
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!file) return;
-
-    setUploading(true);
-    const uploadFormData = new FormData();
-    uploadFormData.append('title', formData.title);
-    uploadFormData.append('description', formData.description);
-    uploadFormData.append('category', formData.category);
-    uploadFormData.append('tags', JSON.stringify(formData.tags.split(',').map(tag => tag.trim())));
-    uploadFormData.append('format', formData.format);
-    uploadFormData.append('file', file);
-
-    try {
-      await axios.post(`${API}/motion-graphics`, uploadFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      onUpload();
-      onClose();
-      setFormData({ title: '', description: '', category: 'transitions', tags: '', format: 'MP4' });
-      setFile(null);
-    } catch (error) {
-      console.error('Upload failed:', error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Upload Motion Graphics</h2>
-          <button className="modal-close" onClick={onClose}>&times;</button>
-        </div>
-        <form onSubmit={handleSubmit} className="upload-form">
-          <div className="form-group">
-            <label>Title</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              required
-            />
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Category</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-              >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat.replace('_', ' ').toUpperCase()}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Format</label>
-              <select
-                value={formData.format}
-                onChange={(e) => setFormData({...formData, format: e.target.value})}
-              >
-                <option value="MP4">MP4</option>
-                <option value="MOV">MOV</option>
-                <option value="AVI">AVI</option>
-                <option value="ZIP">ZIP (Project Files)</option>
-              </select>
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Tags (comma separated)</label>
-            <input
-              type="text"
-              value={formData.tags}
-              onChange={(e) => setFormData({...formData, tags: e.target.value})}
-              placeholder="abstract, colorful, modern"
-            />
-          </div>
-          <div className="form-group">
-            <label>File</label>
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files[0])}
-              accept=".mp4,.mov,.avi,.zip"
-              required
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={uploading} className="btn-primary">
-              {uploading ? 'Uploading...' : 'Upload'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// Motion Graphics Card Component
-const MotionGraphicCard = ({ motionGraphic, onDownload }) => {
-  const handleDownload = async () => {
-    try {
-      const response = await axios.get(
-        `${API}/motion-graphics/${motionGraphic.id}/download`,
-        { responseType: 'blob' }
-      );
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', motionGraphic.filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      
-      if (onDownload) onDownload();
-    } catch (error) {
-      console.error('Download failed:', error);
-    }
-  };
-
-  return (
-    <div className="motion-card">
-      <div className="motion-card-thumbnail">
-        {motionGraphic.thumbnail_base64 ? (
-          <img 
-            src={motionGraphic.thumbnail_base64} 
-            alt={motionGraphic.title}
-            className="thumbnail-image"
-          />
-        ) : (
-          <div className="thumbnail-placeholder">
-            <div className="play-icon">▶</div>
-          </div>
-        )}
-        <div className="card-overlay">
-          <button className="download-btn" onClick={handleDownload}>
-            <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7,10 12,15 17,10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div className="motion-card-content">
-        <h3 className="motion-title">{motionGraphic.title}</h3>
-        <p className="motion-description">{motionGraphic.description}</p>
-        <div className="motion-meta">
-          <span className="motion-category">{motionGraphic.category.toUpperCase()}</span>
-          <span className="motion-format">{motionGraphic.format}</span>
-          <span className="motion-downloads">↓ {motionGraphic.download_count}</span>
-        </div>
-        {motionGraphic.tags && motionGraphic.tags.length > 0 && (
-          <div className="motion-tags">
-            {motionGraphic.tags.slice(0, 3).map((tag, index) => (
-              <span key={index} className="tag">#{tag}</span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Search and Filter Component
-const SearchFilter = ({ onSearch, onCategoryFilter, selectedCategory }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const categories = [
-    'all', 'transitions', 'overlays', 'backgrounds', 'text_animations', 
-    'effects', 'particles', 'shapes', 'logos', 'lower_thirds', 'other'
-  ];
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    onSearch(searchTerm);
-  };
-
-  return (
-    <div className="search-filter-section">
-      <div className="container">
-        <form onSubmit={handleSearch} className="search-form">
-          <input
-            type="text"
-            placeholder="Search motion graphics..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-          <button type="submit" className="search-btn">Search</button>
-        </form>
-        
-        <div className="category-filters">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => onCategoryFilter(category === 'all' ? '' : category)}
-              className={`filter-btn ${selectedCategory === (category === 'all' ? '' : category) ? 'active' : ''}`}
-            >
-              {category.replace('_', ' ').toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Main App Component
 function App() {
-  const [motionGraphics, setMotionGraphics] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [activeTab, setActiveTab] = useState('templates');
 
-  const fetchMotionGraphics = async () => {
+  const fetchTemplates = async () => {
     try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (searchTerm) params.append('search', searchTerm);
-      
-      const response = await axios.get(`${API}/motion-graphics?${params}`);
-      setMotionGraphics(response.data);
+      const response = await axios.get(`${API}/templates`);
+      setTemplates(response.data);
     } catch (error) {
-      console.error('Failed to fetch motion graphics:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch templates:', error);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get(`${API}/projects`);
+      setProjects(response.data);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
     }
   };
 
   useEffect(() => {
-    fetchMotionGraphics();
-  }, [selectedCategory, searchTerm]);
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchTemplates(), fetchProjects()]);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
 
-  const handleSearch = (term) => {
-    setSearchTerm(term);
+  const handleEditTemplate = (template) => {
+    setSelectedTemplate(template);
   };
 
-  const handleCategoryFilter = (category) => {
-    setSelectedCategory(category);
+  const handleCloseEditor = () => {
+    setSelectedTemplate(null);
   };
 
-  const handleUpload = () => {
-    fetchMotionGraphics();
-  };
-
-  const handleDownload = () => {
-    fetchMotionGraphics(); // Refresh to update download counts
+  const handleSaveProject = () => {
+    fetchProjects();
+    setSelectedTemplate(null);
   };
 
   return (
@@ -322,13 +639,20 @@ function App() {
         <div className="container">
           <div className="logo">
             <h1>MotionStock</h1>
+            <span className="logo-subtitle">Creator</span>
           </div>
           <nav>
             <button 
-              onClick={() => setShowUploadModal(true)}
-              className="btn-primary"
+              onClick={() => setActiveTab('templates')}
+              className={activeTab === 'templates' ? 'nav-btn active' : 'nav-btn'}
             >
-              Upload
+              Templates
+            </button>
+            <button 
+              onClick={() => setActiveTab('projects')}
+              className={activeTab === 'projects' ? 'nav-btn active' : 'nav-btn'}
+            >
+              My Projects
             </button>
           </nav>
         </div>
@@ -337,57 +661,75 @@ function App() {
       {/* Hero Section */}
       <HeroSection />
 
-      {/* Search and Filters */}
-      <SearchFilter 
-        onSearch={handleSearch}
-        onCategoryFilter={handleCategoryFilter}
-        selectedCategory={selectedCategory}
-      />
-
-      {/* Motion Graphics Gallery */}
-      <section className="gallery-section">
+      {/* Main Content */}
+      <section className="main-content">
         <div className="container">
-          <div className="section-header">
-            <h2>Motion Graphics Collection</h2>
-            <p>Discover high-quality motion graphics for your creative projects</p>
-          </div>
-          
           {loading ? (
             <div className="loading">
               <div className="spinner"></div>
-              <p>Loading motion graphics...</p>
+              <p>Loading animation templates...</p>
             </div>
           ) : (
-            <div className="motion-grid">
-              {motionGraphics.length > 0 ? (
-                motionGraphics.map(mg => (
-                  <MotionGraphicCard 
-                    key={mg.id} 
-                    motionGraphic={mg} 
-                    onDownload={handleDownload}
-                  />
-                ))
-              ) : (
-                <div className="empty-state">
-                  <p>No motion graphics found. Try adjusting your search or filters.</p>
+            <>
+              {activeTab === 'templates' && (
+                <div className="templates-section">
+                  <div className="section-header">
+                    <h2>Animation Templates</h2>
+                    <p>Choose a template to start creating your custom animation</p>
+                  </div>
+                  <div className="templates-grid">
+                    {templates.map(template => (
+                      <TemplateCard
+                        key={template.id}
+                        template={template}
+                        onEdit={handleEditTemplate}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+
+              {activeTab === 'projects' && (
+                <div className="projects-section">
+                  <div className="section-header">
+                    <h2>My Projects</h2>
+                    <p>Your saved animation projects</p>
+                  </div>
+                  {projects.length > 0 ? (
+                    <div className="projects-grid">
+                      {projects.map(project => (
+                        <div key={project.id} className="project-card">
+                          <h3>{project.name}</h3>
+                          <p>Created: {new Date(project.created_at).toLocaleDateString()}</p>
+                          <button className="btn-primary">Edit</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>No projects yet. Create your first animation from a template!</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
 
-      {/* Upload Modal */}
-      <UploadModal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onUpload={handleUpload}
-      />
+      {/* Animation Editor Modal */}
+      {selectedTemplate && (
+        <AnimationEditor
+          template={selectedTemplate}
+          onClose={handleCloseEditor}
+          onSave={handleSaveProject}
+        />
+      )}
 
       {/* Footer */}
       <footer className="app-footer">
         <div className="container">
-          <p>&copy; 2025 MotionStock. Elevate your creativity with premium motion graphics.</p>
+          <p>&copy; 2025 MotionStock Creator. Create amazing motion graphics with ease.</p>
         </div>
       </footer>
     </div>
