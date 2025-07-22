@@ -5,7 +5,7 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Animation Components
+// Enhanced Animation Components
 const MoneyCounter = ({ config, isPlaying, onComplete }) => {
   const [currentValue, setCurrentValue] = useState(config.start_value || 0);
   const intervalRef = useRef(null);
@@ -19,7 +19,7 @@ const MoneyCounter = ({ config, isPlaying, onComplete }) => {
     const startValue = config.start_value || 0;
     const endValue = config.end_value || 1000;
     const duration = config.duration || 3000;
-    const steps = 60; // 60fps
+    const steps = 60;
     const increment = (endValue - startValue) / (duration / (1000 / steps));
 
     let current = startValue;
@@ -48,9 +48,13 @@ const MoneyCounter = ({ config, isPlaying, onComplete }) => {
     return currency + value.toFixed(decimalPlaces).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
+  const glowStyle = config.glow_effect ? {
+    textShadow: `0 0 20px ${config.color || '#00ff88'}, 0 0 40px ${config.color || '#00ff88'}`
+  } : {};
+
   return (
     <div 
-      className="money-counter"
+      className={`money-counter ${config.easing || 'ease-out'}`}
       style={{
         color: config.color || '#00ff88',
         fontSize: `${config.font_size || 48}px`,
@@ -63,10 +67,236 @@ const MoneyCounter = ({ config, isPlaying, onComplete }) => {
         minHeight: '100px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        ...glowStyle
       }}
     >
       {formatValue(currentValue)}
+    </div>
+  );
+};
+
+const AnimatedBarChart = ({ config, isPlaying, onComplete }) => {
+  const [animatedData, setAnimatedData] = useState(config.data?.map(d => ({ ...d, animatedValue: 0 })) || []);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setAnimatedData(config.data?.map(d => ({ ...d, animatedValue: 0 })) || []);
+      return;
+    }
+
+    const duration = config.duration || 2000;
+    const steps = 60;
+    const stepDuration = duration / steps;
+
+    let currentStep = 0;
+    const interval = setInterval(() => {
+      const progress = currentStep / steps;
+      
+      setAnimatedData(config.data?.map(d => ({
+        ...d,
+        animatedValue: d.value * Math.min(progress, 1)
+      })) || []);
+
+      currentStep++;
+      if (currentStep >= steps) {
+        clearInterval(interval);
+        if (onComplete) onComplete();
+      }
+    }, stepDuration);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, config]);
+
+  return (
+    <div style={{
+      background: config.background || '#1a1a2e',
+      padding: '20px',
+      borderRadius: '8px',
+      minHeight: '300px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'flex-end'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        gap: `${config.spacing || 20}px`,
+        height: '200px'
+      }}>
+        {animatedData.map((item, index) => (
+          <div key={index} style={{ textAlign: 'center' }}>
+            <div style={{
+              width: `${config.bar_width || 40}px`,
+              height: `${(item.animatedValue / 100) * 180}px`,
+              backgroundColor: item.color || '#8b5cf6',
+              borderRadius: '4px 4px 0 0',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              paddingTop: '5px',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              transition: 'height 0.1s ease'
+            }}>
+              {config.show_values && Math.round(item.animatedValue)}
+            </div>
+            <div style={{
+              color: config.text_color || '#ffffff',
+              marginTop: '5px',
+              fontSize: '12px'
+            }}>
+              {item.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SocialCounter = ({ config, isPlaying, onComplete }) => {
+  const [currentCount, setCurrentCount] = useState(config.start_count || 0);
+  
+  useEffect(() => {
+    if (!isPlaying) {
+      setCurrentCount(config.start_count || 0);
+      return;
+    }
+
+    const startCount = config.start_count || 0;
+    const endCount = config.end_count || 1000;
+    const duration = config.duration || 3000;
+    const steps = 60;
+    const increment = (endCount - startCount) / (duration / (1000 / steps));
+
+    let current = startCount;
+    const interval = setInterval(() => {
+      current += increment;
+      if (current >= endCount) {
+        current = endCount;
+        setCurrentCount(current);
+        clearInterval(interval);
+        if (onComplete) onComplete();
+      } else {
+        setCurrentCount(current);
+      }
+    }, 1000 / steps);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, config]);
+
+  const formatCount = (count) => {
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+    return Math.floor(count).toString();
+  };
+
+  const getPlatformIcon = (platform) => {
+    const icons = {
+      instagram: '📷',
+      youtube: '▶️',
+      twitter: '🐦',
+      tiktok: '🎵',
+      linkedin: '💼'
+    };
+    return icons[platform] || '📱';
+  };
+
+  return (
+    <div style={{
+      background: config.background || '#000000',
+      padding: '30px',
+      borderRadius: '8px',
+      textAlign: 'center',
+      minHeight: '150px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '15px'
+    }}>
+      {config.show_icon && (
+        <div style={{
+          fontSize: '48px',
+          animation: config.animate_icon ? 'pulse 2s infinite' : 'none'
+        }}>
+          {getPlatformIcon(config.platform)}
+        </div>
+      )}
+      <div style={{
+        color: config.color || '#e4405f',
+        fontSize: `${config.font_size || 32}px`,
+        fontWeight: 'bold',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        {formatCount(currentCount)}
+      </div>
+      <div style={{
+        color: config.color || '#e4405f',
+        fontSize: '16px',
+        opacity: 0.8
+      }}>
+        {config.label || 'Followers'}
+      </div>
+    </div>
+  );
+};
+
+const CountdownTimer = ({ config, isPlaying, onComplete }) => {
+  const [timeLeft, setTimeLeft] = useState(config.start_time || 60);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setTimeLeft(config.start_time || 60);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          if (onComplete) onComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, config]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isWarning = timeLeft <= (config.warning_threshold || 10);
+
+  return (
+    <div style={{
+      background: config.background || '#1a1a2e',
+      padding: '40px',
+      borderRadius: '8px',
+      textAlign: 'center',
+      minHeight: '120px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <div style={{
+        color: isWarning ? (config.warning_color || '#ff3333') : (config.color || '#ff6b35'),
+        fontSize: `${config.font_size || 48}px`,
+        fontWeight: 'bold',
+        fontFamily: 'monospace',
+        animation: isWarning ? 'pulse 1s infinite' : 'none'
+      }}>
+        {formatTime(timeLeft)}
+      </div>
     </div>
   );
 };
@@ -115,6 +345,10 @@ const TextAnimation = ({ config, isPlaying, onComplete }) => {
     };
   }, [isPlaying, config]);
 
+  const glowStyle = config.glow_intensity > 0 ? {
+    textShadow: `0 0 ${config.glow_intensity}px ${config.color || '#ffffff'}`
+  } : {};
+
   return (
     <div 
       className={`text-animation ${animationClass}`}
@@ -130,10 +364,60 @@ const TextAnimation = ({ config, isPlaying, onComplete }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        animationDuration: `${config.duration || 2000}ms`
+        letterSpacing: `${config.letter_spacing || 2}px`,
+        animationDuration: `${config.duration || 2000}ms`,
+        ...glowStyle
       }}
     >
       {displayText}
+    </div>
+  );
+};
+
+const LogoReveal = ({ config, isPlaying, onComplete }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [animationClass, setAnimationClass] = useState('');
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setIsVisible(false);
+      setAnimationClass('');
+      return;
+    }
+
+    setAnimationClass(`logo-${config.reveal_type || 'fade_in'}`);
+    setIsVisible(true);
+
+    const timeout = setTimeout(() => {
+      if (onComplete) onComplete();
+    }, config.duration || 3000);
+
+    return () => clearTimeout(timeout);
+  }, [isPlaying, config]);
+
+  const logoStyle = {
+    color: config.color || '#8b5cf6',
+    fontSize: `${config.font_size || 48}px`,
+    fontWeight: 'bold',
+    background: config.background || '#000000',
+    padding: '40px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    minHeight: '150px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    animationDuration: `${config.duration || 3000}ms`,
+    textShadow: config.glow_effect ? `0 0 30px ${config.color || '#8b5cf6'}` : 'none',
+    animation: config.shake_intensity > 0 ? `shake ${config.shake_intensity}s infinite` : 'none'
+  };
+
+  return (
+    <div 
+      className={`logo-reveal ${animationClass} ${isVisible ? 'visible' : ''}`}
+      style={logoStyle}
+    >
+      {config.logo_text || 'BRAND'}
     </div>
   );
 };
@@ -168,49 +452,177 @@ const ProgressBar = ({ config, isPlaying, onComplete }) => {
     return () => clearInterval(progressInterval);
   }, [isPlaying, config]);
 
+  const barStyle = {
+    width: `${currentProgress}%`,
+    height: '100%',
+    borderRadius: `${config.border_radius || 10}px`,
+    transition: 'width 0.1s ease'
+  };
+
+  if (config.gradient_effect) {
+    barStyle.background = `linear-gradient(90deg, ${config.bar_color || '#8b5cf6'}, ${config.bar_color || '#8b5cf6'}dd)`;
+  } else {
+    barStyle.backgroundColor = config.bar_color || '#8b5cf6';
+  }
+
+  if (config.pulse_effect) {
+    barStyle.animation = 'pulse 2s infinite';
+  }
+
   return (
-    <div 
-      style={{
-        background: config.background || '#1f2937',
-        padding: '20px',
-        borderRadius: '8px',
-        minHeight: '100px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        gap: '10px'
-      }}
-    >
-      <div 
-        style={{
-          width: '100%',
-          height: `${config.height || 20}px`,
-          backgroundColor: config.background_color || '#374151',
-          borderRadius: `${config.border_radius || 10}px`,
-          overflow: 'hidden',
-          position: 'relative'
-        }}
-      >
-        <div 
-          style={{
-            width: `${currentProgress}%`,
-            height: '100%',
-            backgroundColor: config.bar_color || '#8b5cf6',
-            transition: 'width 0.1s ease',
-            borderRadius: `${config.border_radius || 10}px`
-          }}
-        />
+    <div style={{
+      background: config.background || '#1f2937',
+      padding: '20px',
+      borderRadius: '8px',
+      minHeight: '100px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: '10px'
+    }}>
+      <div style={{
+        width: '100%',
+        height: `${config.height || 20}px`,
+        backgroundColor: config.background_color || '#374151',
+        borderRadius: `${config.border_radius || 10}px`,
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        <div style={barStyle} />
       </div>
       {config.show_percentage && (
-        <div 
-          style={{
-            color: config.text_color || '#ffffff',
-            textAlign: 'center',
-            fontSize: '18px',
-            fontWeight: 'bold'
-          }}
-        >
+        <div style={{
+          color: config.text_color || '#ffffff',
+          textAlign: 'center',
+          fontSize: '18px',
+          fontWeight: 'bold'
+        }}>
           {Math.round(currentProgress)}%
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LoadingAnimation = ({ config, isPlaying, onComplete }) => {
+  useEffect(() => {
+    if (isPlaying && onComplete) {
+      // Loading animations are typically continuous, but we'll call onComplete after a delay
+      const timeout = setTimeout(onComplete, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isPlaying, onComplete]);
+
+  const renderLoadingType = () => {
+    const size = config.size || 60;
+    const color = config.color || '#8b5cf6';
+    const speed = config.speed || 1.5;
+
+    switch (config.loading_type) {
+      case 'spinner':
+        return (
+          <div 
+            className="loading-spinner"
+            style={{
+              width: size,
+              height: size,
+              border: `${config.stroke_width || 4}px solid transparent`,
+              borderTop: `${config.stroke_width || 4}px solid ${color}`,
+              borderRadius: '50%',
+              animationDuration: `${1/speed}s`
+            }}
+          />
+        );
+      case 'dots':
+        return (
+          <div className="loading-dots" style={{ gap: '8px' }}>
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                style={{
+                  width: size/4,
+                  height: size/4,
+                  backgroundColor: color,
+                  borderRadius: '50%',
+                  animationDelay: `${i * 0.2/speed}s`,
+                  animationDuration: `${1/speed}s`
+                }}
+                className="bounce-dot"
+              />
+            ))}
+          </div>
+        );
+      case 'pulse':
+        return (
+          <div 
+            className="loading-pulse"
+            style={{
+              width: size,
+              height: size,
+              backgroundColor: color,
+              borderRadius: '50%',
+              animationDuration: `${1.5/speed}s`
+            }}
+          />
+        );
+      case 'wave':
+        return (
+          <div className="loading-wave" style={{ gap: '4px' }}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <div
+                key={i}
+                style={{
+                  width: size/8,
+                  height: size,
+                  backgroundColor: color,
+                  animationDelay: `${i * 0.1/speed}s`,
+                  animationDuration: `${1/speed}s`
+                }}
+                className="wave-bar"
+              />
+            ))}
+          </div>
+        );
+      case 'orbit':
+        return (
+          <div className="loading-orbit" style={{ width: size, height: size }}>
+            <div 
+              style={{
+                width: size/6,
+                height: size/6,
+                backgroundColor: color,
+                borderRadius: '50%',
+                animationDuration: `${1/speed}s`
+              }}
+              className="orbit-dot"
+            />
+          </div>
+        );
+      default:
+        return <div>Loading...</div>;
+    }
+  };
+
+  return (
+    <div style={{
+      background: config.background || '#1a1a2e',
+      padding: '40px',
+      borderRadius: '8px',
+      minHeight: '200px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '20px'
+    }}>
+      {renderLoadingType()}
+      {config.show_text && (
+        <div style={{
+          color: config.text_color || '#ffffff',
+          fontSize: '16px',
+          fontWeight: '500'
+        }}>
+          {config.loading_text || 'Loading...'}
         </div>
       )}
     </div>
@@ -237,7 +649,6 @@ const ParticleBurst = ({ config, isPlaying, onComplete }) => {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Initialize particles
     const particleCount = config.particle_count || 50;
     const particles = [];
     const centerX = canvas.width / 2;
@@ -251,11 +662,52 @@ const ParticleBurst = ({ config, isPlaying, onComplete }) => {
         vy: (Math.random() - 0.5) * (config.spread || 200) / 10,
         size: config.particle_size || 4,
         life: 1.0,
-        decay: 1 / ((config.duration || 3000) / 16.67) // 60fps
+        decay: 1 / ((config.duration || 3000) / 16.67),
+        shape: config.particle_shape || 'circle',
+        rotation: Math.random() * Math.PI * 2
       });
     }
 
     particlesRef.current = particles;
+
+    const drawParticle = (ctx, particle) => {
+      ctx.save();
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.rotation);
+      
+      switch (particle.shape) {
+        case 'square':
+          ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+          break;
+        case 'triangle':
+          ctx.beginPath();
+          ctx.moveTo(0, -particle.size);
+          ctx.lineTo(-particle.size, particle.size);
+          ctx.lineTo(particle.size, particle.size);
+          ctx.closePath();
+          ctx.fill();
+          break;
+        case 'star':
+          // Simple star shape
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const angle = (i * 2 * Math.PI) / 5;
+            const x = Math.cos(angle) * particle.size;
+            const y = Math.sin(angle) * particle.size;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          break;
+        default: // circle
+          ctx.beginPath();
+          ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+      }
+      
+      ctx.restore();
+    };
 
     const animate = () => {
       ctx.fillStyle = config.background || '#000000';
@@ -270,18 +722,24 @@ const ParticleBurst = ({ config, isPlaying, onComplete }) => {
         particle.y += particle.vy;
         particle.vy += config.gravity || 0.5;
         particle.life -= particle.decay;
+        particle.rotation += 0.1;
 
         const alpha = particle.life;
         ctx.globalAlpha = alpha;
         ctx.fillStyle = config.particle_color || '#fbbf24';
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
+        
+        if (config.trail_effect) {
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = config.particle_color || '#fbbf24';
+        }
+        
+        drawParticle(ctx, particle);
 
         if (particle.life > 0) aliveParticles++;
       });
 
       ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
 
       if (aliveParticles > 0) {
         animationRef.current = requestAnimationFrame(animate);
@@ -314,18 +772,43 @@ const ParticleBurst = ({ config, isPlaying, onComplete }) => {
   );
 };
 
-// Animation Preview Component
-const AnimationPreview = ({ template, config, isPlaying, onComplete }) => {
+// Enhanced Animation Preview Component
+const AnimationPreview = ({ template, config, isPlaying, onComplete, autoPlay = false }) => {
+  const [localPlaying, setLocalPlaying] = useState(autoPlay);
+
+  useEffect(() => {
+    if (autoPlay) {
+      setLocalPlaying(true);
+      const timeout = setTimeout(() => {
+        setLocalPlaying(false);
+        setTimeout(() => setLocalPlaying(true), 1000); // Loop preview
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [autoPlay]);
+
+  const actualPlaying = isPlaying !== undefined ? isPlaying : localPlaying;
+
   const renderAnimation = () => {
     switch (template.type) {
       case 'counter':
-        return <MoneyCounter config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+        return <MoneyCounter config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
+      case 'chart':
+        return <AnimatedBarChart config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
+      case 'social_counter':
+        return <SocialCounter config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
+      case 'countdown':
+        return <CountdownTimer config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
       case 'text_animation':
-        return <TextAnimation config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+        return <TextAnimation config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
+      case 'logo_reveal':
+        return <LogoReveal config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
       case 'progress_bar':
-        return <ProgressBar config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+        return <ProgressBar config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
+      case 'loading':
+        return <LoadingAnimation config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
       case 'particles':
-        return <ParticleBurst config={config} isPlaying={isPlaying} onComplete={onComplete} />;
+        return <ParticleBurst config={config} isPlaying={actualPlaying} onComplete={onComplete} />;
       default:
         return <div>Unknown animation type</div>;
     }
@@ -338,7 +821,7 @@ const AnimationPreview = ({ template, config, isPlaying, onComplete }) => {
   );
 };
 
-// Parameter Control Component
+// Enhanced Parameter Control Component
 const ParameterControl = ({ param, value, onChange }) => {
   const handleChange = (newValue) => {
     onChange(param.name, newValue);
@@ -384,21 +867,27 @@ const ParameterControl = ({ param, value, onChange }) => {
         );
       case 'color':
         return (
-          <input
-            type="color"
-            value={value || '#000000'}
-            onChange={(e) => handleChange(e.target.value)}
-            className="param-color"
-          />
+          <div className="color-control">
+            <input
+              type="color"
+              value={value || '#000000'}
+              onChange={(e) => handleChange(e.target.value)}
+              className="param-color"
+            />
+            <span className="color-value">{value}</span>
+          </div>
         );
       case 'boolean':
         return (
-          <input
-            type="checkbox"
-            checked={value || false}
-            onChange={(e) => handleChange(e.target.checked)}
-            className="param-checkbox"
-          />
+          <label className="checkbox-control">
+            <input
+              type="checkbox"
+              checked={value || false}
+              onChange={(e) => handleChange(e.target.checked)}
+              className="param-checkbox"
+            />
+            <span className="checkbox-label">Enable</span>
+          </label>
         );
       case 'select':
         return (
@@ -427,11 +916,12 @@ const ParameterControl = ({ param, value, onChange }) => {
   );
 };
 
-// Animation Editor Component
+// Enhanced Animation Editor Component with Export
 const AnimationEditor = ({ template, onClose, onSave }) => {
   const [config, setConfig] = useState(template.default_config);
   const [isPlaying, setIsPlaying] = useState(false);
   const [projectName, setProjectName] = useState(`${template.name} Project`);
+  const [exporting, setExporting] = useState(false);
 
   const handleParameterChange = (paramName, value) => {
     setConfig(prev => ({
@@ -465,12 +955,57 @@ const AnimationEditor = ({ template, onClose, onSave }) => {
     }
   };
 
+  const handleExport = async (format = 'mp4') => {
+    try {
+      setExporting(true);
+      
+      // First save the project
+      const projectData = {
+        template_id: template.id,
+        name: projectName,
+        config: config
+      };
+
+      const projectResponse = await axios.post(`${API}/projects`, projectData);
+      const projectId = projectResponse.data.id;
+
+      // Then export it
+      const exportData = {
+        project_id: projectId,
+        format: format,
+        duration: 5000,
+        width: 800,
+        height: 600,
+        quality: 'high'
+      };
+
+      const exportResponse = await axios.post(`${API}/export`, exportData);
+      
+      // Download the exported file
+      const downloadUrl = `${API}${exportResponse.data.download_url}`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${projectName}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      alert(`Animation exported successfully as ${format.toUpperCase()}!`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export animation');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="editor-modal">
       <div className="editor-content">
         <div className="editor-header">
           <div>
             <h2>Animation Editor - {template.name}</h2>
+            <span className="template-category">{template.category}</span>
             <input
               type="text"
               value={projectName}
@@ -499,6 +1034,22 @@ const AnimationEditor = ({ template, onClose, onSave }) => {
               >
                 ⏹ Stop
               </button>
+              <div className="export-controls">
+                <button 
+                  onClick={() => handleExport('mp4')} 
+                  disabled={exporting}
+                  className="btn-export"
+                >
+                  📹 Export MP4
+                </button>
+                <button 
+                  onClick={() => handleExport('gif')} 
+                  disabled={exporting}
+                  className="btn-export"
+                >
+                  🎞️ Export GIF
+                </button>
+              </div>
             </div>
             <div className="preview-container">
               <AnimationPreview
@@ -512,6 +1063,7 @@ const AnimationEditor = ({ template, onClose, onSave }) => {
 
           <div className="editor-controls">
             <h3>Parameters</h3>
+            <p className="template-description">{template.description}</p>
             <div className="parameters-grid">
               {template.editable_params.map(param => (
                 <ParameterControl
@@ -534,17 +1086,26 @@ const AnimationEditor = ({ template, onClose, onSave }) => {
   );
 };
 
-// Template Card Component
+// Enhanced Template Card Component with Auto-play Preview
 const TemplateCard = ({ template, onEdit }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
-    <div className="template-card">
+    <div 
+      className="template-card"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div className="template-preview">
         <AnimationPreview
           template={template}
           config={template.default_config}
-          isPlaying={false}
+          autoPlay={isHovered}
           onComplete={() => {}}
         />
+        <div className="template-overlay">
+          <span className="template-category-badge">{template.category}</span>
+        </div>
       </div>
       <div className="template-info">
         <h3>{template.name}</h3>
@@ -557,7 +1118,7 @@ const TemplateCard = ({ template, onEdit }) => {
   );
 };
 
-// Hero Section Component (Updated)
+// Enhanced Hero Section Component
 const HeroSection = () => {
   return (
     <section className="hero-section">
@@ -570,14 +1131,28 @@ const HeroSection = () => {
         <div className="hero-overlay"></div>
       </div>
       <div className="hero-content">
-        <h1 className="hero-title">Create & Customize Motion Graphics</h1>
+        <h1 className="hero-title">Professional Motion Graphics Studio</h1>
         <p className="hero-subtitle">
-          Design stunning animated graphics with our powerful editor. Customize colors, text, timing, and more.
-          Create money counters, progress bars, text animations, and particle effects.
+          Create stunning animated graphics with our advanced editor. Money counters, social media animations,
+          data visualizations, loading spinners, and more. Customize every detail and export ready-to-use animations.
         </p>
         <div className="hero-buttons">
-          <button className="btn-primary">Start Creating</button>
-          <button className="btn-secondary">Browse Templates</button>
+          <button className="btn-primary hero-btn">🚀 Start Creating</button>
+          <button className="btn-secondary hero-btn">📚 Browse Templates</button>
+        </div>
+        <div className="hero-stats">
+          <div className="stat">
+            <span className="stat-number">9+</span>
+            <span className="stat-label">Animation Types</span>
+          </div>
+          <div className="stat">
+            <span className="stat-number">50+</span>
+            <span className="stat-label">Parameters</span>
+          </div>
+          <div className="stat">
+            <span className="stat-number">∞</span>
+            <span className="stat-label">Possibilities</span>
+          </div>
         </div>
       </div>
     </section>
@@ -591,10 +1166,14 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [activeTab, setActiveTab] = useState('templates');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [templateCategories, setTemplateCategories] = useState([]);
 
   const fetchTemplates = async () => {
     try {
-      const response = await axios.get(`${API}/templates`);
+      const response = await axios.get(`${API}/templates`, {
+        params: selectedCategory ? { category: selectedCategory } : {}
+      });
       setTemplates(response.data);
     } catch (error) {
       console.error('Failed to fetch templates:', error);
@@ -610,14 +1189,23 @@ function App() {
     }
   };
 
+  const fetchTemplateCategories = async () => {
+    try {
+      const response = await axios.get(`${API}/template-categories`);
+      setTemplateCategories(['all', ...response.data.categories]);
+    } catch (error) {
+      console.error('Failed to fetch template categories:', error);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchTemplates(), fetchProjects()]);
+      await Promise.all([fetchTemplates(), fetchProjects(), fetchTemplateCategories()]);
       setLoading(false);
     };
     loadData();
-  }, []);
+  }, [selectedCategory]);
 
   const handleEditTemplate = (template) => {
     setSelectedTemplate(template);
@@ -632,6 +1220,10 @@ function App() {
     setSelectedTemplate(null);
   };
 
+  const handleCategoryFilter = (category) => {
+    setSelectedCategory(category === 'all' ? '' : category);
+  };
+
   return (
     <div className="App">
       {/* Header */}
@@ -639,20 +1231,20 @@ function App() {
         <div className="container">
           <div className="logo">
             <h1>MotionStock</h1>
-            <span className="logo-subtitle">Creator</span>
+            <span className="logo-subtitle">Studio Pro</span>
           </div>
           <nav>
             <button 
               onClick={() => setActiveTab('templates')}
               className={activeTab === 'templates' ? 'nav-btn active' : 'nav-btn'}
             >
-              Templates
+              🎨 Templates
             </button>
             <button 
               onClick={() => setActiveTab('projects')}
               className={activeTab === 'projects' ? 'nav-btn active' : 'nav-btn'}
             >
-              My Projects
+              📁 My Projects
             </button>
           </nav>
         </div>
@@ -660,6 +1252,25 @@ function App() {
 
       {/* Hero Section */}
       <HeroSection />
+
+      {/* Template Categories Filter */}
+      {activeTab === 'templates' && (
+        <section className="category-filter-section">
+          <div className="container">
+            <div className="category-filters">
+              {templateCategories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => handleCategoryFilter(category)}
+                  className={`category-filter-btn ${selectedCategory === (category === 'all' ? '' : category) ? 'active' : ''}`}
+                >
+                  {category === 'all' ? '🌟 All' : `${getCategoryIcon(category)} ${category.charAt(0).toUpperCase() + category.slice(1)}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Main Content */}
       <section className="main-content">
@@ -674,8 +1285,13 @@ function App() {
               {activeTab === 'templates' && (
                 <div className="templates-section">
                   <div className="section-header">
-                    <h2>Animation Templates</h2>
-                    <p>Choose a template to start creating your custom animation</p>
+                    <h2>
+                      {selectedCategory 
+                        ? `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Templates` 
+                        : 'All Animation Templates'
+                      }
+                    </h2>
+                    <p>Hover over templates to see live previews • Click to customize</p>
                   </div>
                   <div className="templates-grid">
                     {templates.map(template => (
@@ -693,7 +1309,7 @@ function App() {
                 <div className="projects-section">
                   <div className="section-header">
                     <h2>My Projects</h2>
-                    <p>Your saved animation projects</p>
+                    <p>Your saved and exported animation projects</p>
                   </div>
                   {projects.length > 0 ? (
                     <div className="projects-grid">
@@ -701,13 +1317,25 @@ function App() {
                         <div key={project.id} className="project-card">
                           <h3>{project.name}</h3>
                           <p>Created: {new Date(project.created_at).toLocaleDateString()}</p>
-                          <button className="btn-primary">Edit</button>
+                          <p>Updated: {new Date(project.updated_at).toLocaleDateString()}</p>
+                          <div className="project-actions">
+                            <button className="btn-primary">✏️ Edit</button>
+                            <button className="btn-secondary">📤 Export</button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div className="empty-state">
-                      <p>No projects yet. Create your first animation from a template!</p>
+                      <div className="empty-icon">🎬</div>
+                      <h3>No projects yet</h3>
+                      <p>Create your first animation from our professional templates!</p>
+                      <button 
+                        className="btn-primary"
+                        onClick={() => setActiveTab('templates')}
+                      >
+                        Browse Templates
+                      </button>
                     </div>
                   )}
                 </div>
@@ -729,11 +1357,45 @@ function App() {
       {/* Footer */}
       <footer className="app-footer">
         <div className="container">
-          <p>&copy; 2025 MotionStock Creator. Create amazing motion graphics with ease.</p>
+          <div className="footer-content">
+            <div>
+              <h3>MotionStock Studio Pro</h3>
+              <p>Professional motion graphics creation made simple</p>
+            </div>
+            <div className="footer-features">
+              <div className="feature">
+                <span className="feature-icon">🎯</span>
+                <span>9+ Animation Types</span>
+              </div>
+              <div className="feature">
+                <span className="feature-icon">⚡</span>
+                <span>Real-time Preview</span>
+              </div>
+              <div className="feature">
+                <span className="feature-icon">📱</span>
+                <span>Export Ready</span>
+              </div>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p>&copy; 2025 MotionStock Studio Pro. Create amazing motion graphics with ease.</p>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+
+// Helper function for category icons
+const getCategoryIcon = (category) => {
+  const icons = {
+    business: '💼',
+    social: '📱',
+    utility: '🔧',
+    creative: '🎨',
+    data: '📊'
+  };
+  return icons[category] || '🎯';
+};
 
 export default App;
