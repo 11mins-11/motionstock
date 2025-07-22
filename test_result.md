@@ -249,9 +249,6 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Motion Graphics File Upload System"
-    - "Gallery API Endpoints"
-    - "File Download System"
     - "File Upload Modal Interface"
   stuck_tasks: []
   test_all: false
